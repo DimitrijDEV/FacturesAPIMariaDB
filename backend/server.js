@@ -1,5 +1,5 @@
 const express = require('express')
-const { sendQuery } = require('./scripts/db')
+const { sendQuery } = require('./scripts/MSdb')
 const { getResponse } = require('./scripts/response')
 const { createFacture } = require('./scripts/factures')
 const app = express()
@@ -22,17 +22,29 @@ app.get('/factures', async (req, res) => {
         )
     } catch (error) {
         res.send(
-            getResponse(false, [], "We didn't get results")
+            getResponse(false, [], error)
         )
     }
 });
 
-app.get('/clients', async (req, res) => {
-    const queryDB =
-        `select p.name as client_name, comp.name as client_company, phone, number_tax, email, currency, bill, street, postal_code, city, country from clients cl` +
-        ` inner join people p on p.person_id = cl.person_id ` +
-        ` inner join companies comp on comp.company_id = p.company_id` +
-        ` inner join addresses a on a.address_id = cl.address_id`;
+app.get('/orders', async (req, res) => {
+    const queryDB = `select * from orders;`;
+
+    try {
+        const factures = await sendQuery(queryDB);
+
+        res.send(
+            getResponse(true, factures, 'We got results')
+        )
+    } catch (error) {
+        res.send(
+            getResponse(false, [], error)
+        )
+    }
+});
+
+app.get('/people', async (req, res) => {
+    const queryDB = `select * from people`;
 
     try {
         const clients = await sendQuery(queryDB);
@@ -42,29 +54,7 @@ app.get('/clients', async (req, res) => {
         )
     } catch (error) {
         res.send(
-            getResponse(false, [], "We didn't get results")
-        )
-    }
-});
-
-
-app.get('/sellers', async (req, res) => {
-
-    const queryDB =
-        `select p.name as seller_name, comp.name as seller_company, phone, number_tax, email, currency, bill, street, postal_code, city, country from sellers sl` +
-        ` inner join people p on p.person_id = sl.person_id ` +
-        ` inner join companies comp on comp.company_id = p.company_id` +
-        ` inner join addresses a on a.address_id = sl.address_id`;
-
-    try {
-        const sellers = await sendQuery(queryDB);
-
-        res.send(
-            getResponse(true, sellers, 'We got results')
-        )
-    } catch (error) {
-        res.send(
-            getResponse(false, [], "We didn't get results")
+            getResponse(false, [], error)
         )
     }
 });
@@ -73,11 +63,8 @@ app.post('/find-client', async (req, res) => {
     const
         { client_id } = req.body,
         queryDB =
-            `select p.name as client_name, comp.name as client_company, phone, number_tax, email, currency, bill, street, postal_code, city, country from clients cl` +
-            ` inner join people p on p.person_id = cl.person_id ` +
-            ` inner join companies comp on comp.company_id = p.company_id` +
-            ` inner join addresses a on a.address_id = cl.address_id` +
-            ` where client_id = ${client_id};`;
+            `select person_name as client_name, company_name, number_phone, number_tax, email, currency, bill, street, postal_code, city, country from people`+
+            ` where person_id = ${client_id};`;
 
     try {
         const client = await sendQuery(queryDB);
@@ -87,7 +74,7 @@ app.post('/find-client', async (req, res) => {
         )
     } catch (error) {
         res.send(
-            getResponse(false, [], "We didn't get results")
+            getResponse(false, [], error)
         )
     }
 });
@@ -97,11 +84,8 @@ app.post('/find-seller', async (req, res) => {
     const
         { seller_id } = req.body,
         queryDB =
-            `select p.name as seller_name, comp.name as seller_company, phone, number_tax, email, currency, bill, street, postal_code, city, country from sellers sl` +
-            ` inner join people p on p.person_id = sl.person_id ` +
-            ` inner join companies comp on comp.company_id = p.company_id` +
-            ` inner join addresses a on a.address_id = sl.address_id` +
-            ` where seller_id = ${seller_id};`;
+            `select person_name as seller_name, company_name, number_phone, number_tax, email, currency, bill, street, postal_code, city, country from people` +
+            ` where person_id = ${seller_id};`;
 
     try {
         const seller = await sendQuery(queryDB);
@@ -111,7 +95,7 @@ app.post('/find-seller', async (req, res) => {
         )
     } catch (error) {
         res.send(
-            getResponse(false, [], "We didn't get results")
+            getResponse(false, [], error)
         )
     }
 });
@@ -121,7 +105,7 @@ app.post('/find-orders', async (req, res) => {
     const
         { number_facture } = req.body,
         queryDB =
-            `select number_facture, quantity, name, unit, currency, price, tax from orders` +
+            `select number_facture, quantity, product_name, unit, currency, price, tax from orders` +
             ` inner join products pr on pr.product_id = orders.product_id` +
             ` where number_facture = '${number_facture}'`;
 
@@ -133,10 +117,38 @@ app.post('/find-orders', async (req, res) => {
         )
     } catch (error) {
         res.send(
-            getResponse(false, [], "We didn't get results")
+            getResponse(false, [], error)
         )
     }
 });
+
+app.post('/find-facture', async (req, res) => {
+
+    const
+        {
+            client_nip,
+            start_date,
+            final_date
+        } = req.body,
+        queryDB =
+            `select facture_id, number_facture, number_tax, facture_status, payment_date, price_brutto from factures f` +
+            ` inner join people p on p.person_id = f.client_id`+
+            ` where number_tax = ${client_nip} AND issue_date = '${start_date}' AND sell_date = '${final_date}'`;
+       
+    try {
+        const factures = await sendQuery(queryDB);
+
+        res.send(
+            getResponse(true, factures, 'We got results')
+        )
+    } catch (error) {
+        res.send(
+            getResponse(false, [], error)
+        )
+    }
+});
+
+
 
 app.post('/create-facture', async (req, res) => {
 
@@ -180,7 +192,7 @@ app.post('/create-facture', async (req, res) => {
             )
         } catch (error) {
             res.send(
-                getResponse(false, [], "The facture wasn't created")
+                getResponse(false, [], error)
             )
         }
     } else {
@@ -205,7 +217,7 @@ app.delete('/delete-facture/:number_facture', async (req, res) => {
         );
     } catch (error) {
         res.send(
-            getResponse(false, [], "The facture wasn't deleted")
+            getResponse(false, [], error)
         );
     }
 });

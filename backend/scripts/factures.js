@@ -1,4 +1,4 @@
-const { sendQuery } = require('./db')
+const { sendQuery } = require('./MSdb')
 
 const createFacture = async (info) => {
 
@@ -42,7 +42,7 @@ const createFacture = async (info) => {
     }
 
     await sendQuery(
-        `insert into factures (client_id, seller_id, number_facture, sell_date, payment_date, issue_date, status, price_netto, price_brutto)` +
+        `insert into factures (client_id, seller_id, number_facture, sell_date, payment_date, issue_date, facture_status, price_netto, price_brutto)` +
         ` values` + 
         ` (${facture.client_id}, ${facture.seller_id}, '${facture.number_facture}', '${facture.sell_date}', '${facture.payment_date}',` +
         ` '${facture.issue_date}', '${facture.status}', ${facture.price_netto}, ${facture.price_brutto} )`
